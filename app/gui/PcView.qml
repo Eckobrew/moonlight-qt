@@ -89,15 +89,16 @@ CenteredGridView {
 
         BusyIndicator {
             id: searchSpinner
-            visible: StreamingPreferences.enableMdns
+            visible: StreamingPreferences.enableMdns && !StreamingPreferences.hideUnpairedHosts
             running: visible
         }
 
         Label {
             height: searchSpinner.height
             elide: Label.ElideRight
-            text: StreamingPreferences.enableMdns ? qsTr("Searching for compatible hosts on your local network...")
-                                                  : qsTr("Automatic PC discovery is disabled. Add your PC manually.")
+            text: StreamingPreferences.hideUnpairedHosts ? qsTr("No paired PCs found. Unpaired hosts are hidden.")
+                                                        : StreamingPreferences.enableMdns ? qsTr("Searching for compatible hosts on your local network...")
+                                                                                          : qsTr("Automatic PC discovery is disabled. Add your PC manually.")
             font.pointSize: 20
             verticalAlignment: Text.AlignVCenter
             wrapMode: Text.Wrap
@@ -175,7 +176,7 @@ CenteredGridView {
                     text: qsTr("View All Apps")
                     onTriggered: {
                         var component = Qt.createComponent("AppView.qml")
-                        var appView = component.createObject(stackView, {"computerIndex": index, "objectName": model.name, "showHiddenGames": true})
+                        var appView = component.createObject(stackView, {"computerUuid": model.uuid, "objectName": model.name, "showHiddenGames": true})
                         stackView.push(appView)
                     }
                     visible: model.online && model.paired
@@ -229,7 +230,7 @@ CenteredGridView {
                 else if (model.paired) {
                     // go to game view
                     var component = Qt.createComponent("AppView.qml")
-                    var appView = component.createObject(stackView, {"computerIndex": index, "objectName": model.name})
+                    var appView = component.createObject(stackView, {"computerUuid": model.uuid, "objectName": model.name})
                     stackView.push(appView)
                 }
                 else {

@@ -1896,6 +1896,22 @@ Flickable {
                 }
 
                 CheckBox {
+                    id: hideUnpairedHosts
+                    width: parent.width
+                    text: qsTr("Hide unpaired PCs")
+                    font.pointSize: 12
+                    checked: StreamingPreferences.hideUnpairedHosts
+                    onCheckedChanged: {
+                        StreamingPreferences.hideUnpairedHosts = checked
+                    }
+
+                    ToolTip.delay: 1000
+                    ToolTip.timeout: 5000
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("Hide hosts that are not paired with this PC. Disable this option to pair a newly discovered PC.")
+                }
+
+                CheckBox {
                     id: detectNetworkBlocking
                     width: parent.width
                     text: qsTr("Automatically detect blocked connections (Recommended)")

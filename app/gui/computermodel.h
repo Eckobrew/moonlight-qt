@@ -16,7 +16,8 @@ class ComputerModel : public QAbstractListModel
         WakeableRole,
         StatusUnknownRole,
         ServerSupportedRole,
-        DetailsRole
+        DetailsRole,
+        UuidRole
     };
 
 public:
@@ -54,7 +55,13 @@ private slots:
 
     void handlePairingCompleted(NvComputer* computer, QString error);
 
+    void handleHideUnpairedHostsChanged();
+
 private:
+    QVector<NvComputer*> getVisibleComputers() const;
+
+    bool shouldDisplayComputer(NvComputer* computer) const;
+
     QVector<NvComputer*> m_Computers;
     ComputerManager* m_ComputerManager;
 };

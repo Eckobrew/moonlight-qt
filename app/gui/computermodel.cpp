@@ -1,4 +1,5 @@
 #include "computermodel.h"
+#include "settings/streamingpreferences.h"
 
 #include <QThreadPool>
 
@@ -13,7 +14,44 @@ void ComputerModel::initialize(ComputerManager* computerManager)
     connect(m_ComputerManager, &ComputerManager::pairingCompleted,
             this, &ComputerModel::handlePairingCompleted);
 
-    m_Computers = m_ComputerManager->getComputers();
+    m_Computers = getVisibleComputers();
+
+    connect(StreamingPreferences::get(), &StreamingPreferences::hideUnpairedHostsChanged,
+            this, &ComputerModel::handleHideUnpairedHostsChanged);
+}
+
+bool ComputerModel::shouldDisplayComputer(NvComputer* computer) const
+{
+    if (!StreamingPreferences::get()->hideUnpairedHosts) {
+        return true;
+    }
+
+    QReadLocker lock(&computer->lock);
+
+    if (computer->pairState == NvComputer::PS_PAIRED) {
+        return true;
+    }
+
+    if (computer->pairState == NvComputer::PS_NOT_PAIRED) {
+        return false;
+    }
+
+    // Pair state is not persisted, so treat a saved server certificate
+    // as evidence that this host was previously paired.
+    return !computer->serverCert.isNull();
+}
+
+QVector<NvComputer*> ComputerModel::getVisibleComputers() const
+{
+    QVector<NvComputer*> visible;
+
+    for (NvComputer* computer : m_ComputerManager->getComputers()) {
+        if (shouldDisplayComputer(computer)) {
+            visible.append(computer);
+        }
+    }
+
+    return visible;
 }
 
 QVariant ComputerModel::data(const QModelIndex& index, int role) const
@@ -42,6 +80,8 @@ QVariant ComputerModel::data(const QModelIndex& index, int role) const
         return computer->state == NvComputer::CS_UNKNOWN;
     case ServerSupportedRole:
         return computer->isSupportedServerVersion;
+    case UuidRole:
+        return computer->uuid;
     case DetailsRole: {
         QString state, pairState;
 
@@ -110,6 +150,7 @@ QHash<int, QByteArray> ComputerModel::roleNames() const
     names[StatusUnknownRole] = "statusUnknown";
     names[ServerSupportedRole] = "serverSupported";
     names[DetailsRole] = "details";
+    names[UuidRole] = "uuid";
 
     return names;
 }
@@ -225,9 +266,14 @@ void ComputerModel::handlePairingCompleted(NvComputer*, QString error)
     emit pairingCompleted(error.isEmpty() ? QVariant() : error);
 }
 
+void ComputerModel::handleHideUnpairedHostsChanged()
+{
+    handleComputerStateChanged(nullptr);
+}
+
 void ComputerModel::handleComputerStateChanged(NvComputer* computer)
 {
-    QVector<NvComputer*> newComputerList = m_ComputerManager->getComputers();
+    QVector<NvComputer*> newComputerList = getVisibleComputers();
 
     // Reset the model if the structural layout of the list has changed
     if (m_Computers != newComputerList) {
@@ -235,10 +281,12 @@ void ComputerModel::handleComputerStateChanged(NvComputer* computer)
         m_Computers = newComputerList;
         endResetModel();
     }
-    else {
+    else if (computer != nullptr) {
         // Let the view know that this specific computer changed
         int index = m_Computers.indexOf(computer);
-        emit dataChanged(createIndex(index, 0), createIndex(index, 0));
+        if (index >= 0) {
+            emit dataChanged(createIndex(index, 0), createIndex(index, 0));
+        }
     }
 }
 

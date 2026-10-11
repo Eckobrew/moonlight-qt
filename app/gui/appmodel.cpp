@@ -7,14 +7,21 @@ AppModel::AppModel(QObject *parent)
             this, &AppModel::handleBoxArtLoaded);
 }
 
-void AppModel::initialize(ComputerManager* computerManager, int computerIndex, bool showHiddenGames)
+void AppModel::initialize(ComputerManager* computerManager, QString computerUuid, bool showHiddenGames)
 {
     m_ComputerManager = computerManager;
     connect(m_ComputerManager, &ComputerManager::computerStateChanged,
             this, &AppModel::handleComputerStateChanged);
 
-    Q_ASSERT(computerIndex < m_ComputerManager->getComputers().count());
-    m_Computer = m_ComputerManager->getComputers().at(computerIndex);
+    m_Computer = nullptr;
+    for (NvComputer* computer : m_ComputerManager->getComputers()) {
+        if (computer->uuid == computerUuid) {
+            m_Computer = computer;
+            break;
+        }
+    }
+    Q_ASSERT(m_Computer != nullptr);
+
     m_CurrentGameId = m_Computer->currentGameId;
     m_ShowHiddenGames = showHiddenGames;
 

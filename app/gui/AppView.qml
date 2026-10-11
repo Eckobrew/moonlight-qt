@@ -7,7 +7,7 @@ import ComputerManager 1.0
 import SdlGamepadKeyNavigation 1.0
 
 CenteredGridView {
-    property int computerIndex
+    property string computerUuid
     property AppModel appModel : createModel()
     property bool activated
     property bool showHiddenGames
@@ -64,7 +64,7 @@ CenteredGridView {
     function createModel()
     {
         var model = Qt.createQmlObject('import AppModel 1.0; AppModel {}', parent, '')
-        model.initialize(ComputerManager, computerIndex, showHiddenGames)
+        model.initialize(ComputerManager, computerUuid, showHiddenGames)
         return model
     }
 
