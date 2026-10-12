@@ -1,5 +1,7 @@
+# =========================
+# Your Original Rules
+# =========================
 *pro.user
-
 
 **/.vs/
 .vscode/
@@ -7,3 +9,30 @@ build/
 libs/
 config.tests/*/.qmake.stash
 config.tests/*/Makefile
+
+# =========================
+# Added for Build Artifacts & macOS
+# =========================
+# macOS system files
+.DS_Store
+.DS_Store?
+._*
+
+# QMake temporary/cache files
+.qmake.stash
+.qmake.cache
+
+# Makefiles & build logs
+Makefile*
+config.log
+
+# Qt / QML cache & compiled app bundles
+qml_qmlcache.qrc
+*.app/
+
+# Static libraries
+*.a
+
+# Backup / patch files
+*-e
+*.bak
