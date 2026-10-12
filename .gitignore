@@ -36,3 +36,22 @@ qml_qmlcache.qrc
 # Backup / patch files
 *-e
 *.bak
+
+# Object and compiled files
+*.o
+*.obj
+*.moc
+
+# Release & Debug build directories
+/release/
+/debug/
+app/release/
+app/debug/
+
+
+# Qt generated files anywhere in subdirectories
+**/moc_*.cpp
+**/moc_*.h
+**/qrc_*.cpp
+**/ui_*.h
+**/qmake_args

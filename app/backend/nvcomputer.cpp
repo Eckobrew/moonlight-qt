@@ -456,10 +456,49 @@ NvComputer::ReachabilityType NvComputer::getActiveAddressReachability() const
         return ReachabilityType::RI_UNKNOWN;
     }
     else {
-        // If we fail to connect, just pretend that it's not a VPN
         qWarning() << "Unable to check for reachability within 3 seconds";
         return ReachabilityType::RI_UNKNOWN;
     }
+}
+
+bool NvComputer::isConnectedViaRemoteAddress() const
+{
+    NvAddress currentActive;
+    NvAddress currentRemote;
+    NvAddress currentLocal;
+
+    {
+        QReadLocker readLocker(&lock);
+        currentActive = activeAddress;
+        currentRemote = remoteAddress;
+        currentLocal = localAddress;
+    }
+
+    if (currentActive.isNull()) {
+        return false;
+    }
+
+    // If activeAddress explicitly matches remoteAddress, it's connecting via remote IP
+    if (!currentRemote.isNull() && currentActive.address() == currentRemote.address()) {
+        return true;
+    }
+
+    // Check reachability
+    ReachabilityType reachability = getActiveAddressReachability();
+
+    // If activeAddress explicitly matches localAddress and reachability is local LAN, it's local
+    if (!currentLocal.isNull() && currentActive.address() == currentLocal.address() &&
+        reachability == ReachabilityType::RI_LAN) {
+        return false;
+    }
+
+    // If reachability is LAN, treat as local network connection
+    if (reachability == ReachabilityType::RI_LAN) {
+        return false;
+    }
+
+    // All other cases (VPN or WAN route) are considered remote
+    return true;
 }
 
 bool NvComputer::updateAppList(QVector<NvApp> newAppList) {

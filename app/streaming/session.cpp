@@ -631,6 +631,22 @@ bool Session::initialize(QQuickWindow* qtWindow)
     // own values if the user asked us to match it automatically
     overrideStreamConfigForClientDisplay(testWindow);
 
+    // Check if we should use custom bitrate when connecting via remote IP
+    if (m_Preferences->enableCustomBitrateRemote && m_Computer != nullptr && m_Computer->isConnectedViaRemoteAddress()) {
+        m_StreamConfig.bitrate = qMin(m_Preferences->customBitrateKbps,
+                                      StreamingPreferences::getMaxBitrate(m_Preferences->unlockBitrate));
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                    "Connecting via remote IP (%s). Using custom bitrate: %d kbps",
+                    qPrintable(m_Computer->activeAddress.toString()),
+                    m_StreamConfig.bitrate);
+    }
+    else {
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                    "Connecting via local network IP (%s). Using standard bitrate: %d kbps",
+                    qPrintable(m_Computer != nullptr ? m_Computer->activeAddress.toString() : "<unknown>"),
+                    m_StreamConfig.bitrate);
+    }
+
 #ifdef Q_OS_DARWIN
     if (qEnvironmentVariableIntValue("I_WANT_BUGGY_FULLSCREEN") == 0) {
         // If we have a notch and we're streaming at one of the two native display modes

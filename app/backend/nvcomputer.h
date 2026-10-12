@@ -63,6 +63,9 @@ public:
     ReachabilityType
     getActiveAddressReachability() const;
 
+    bool
+    isConnectedViaRemoteAddress() const;
+
     QVector<NvAddress>
     uniqueAddresses() const;
 

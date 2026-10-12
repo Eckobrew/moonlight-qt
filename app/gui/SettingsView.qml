@@ -827,6 +827,62 @@ Flickable {
                     }
                 }
 
+                CheckBox {
+                    id: customBitrateRemoteCheckbox
+                    hoverEnabled: true
+                    text: qsTr("Use custom bitrate when connecting via remote IP")
+                    font.pointSize: 12
+                    checked: StreamingPreferences.enableCustomBitrateRemote
+                    onCheckedChanged: {
+                        StreamingPreferences.enableCustomBitrateRemote = checked
+                    }
+                    ToolTip.delay: 1000
+                    ToolTip.timeout: 5000
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("Uses the standard video bitrate above when on your home network, and switches to this custom bitrate when connecting remotely over the Internet.")
+                }
+
+                Column {
+                    width: parent.width
+                    spacing: 5
+                    visible: customBitrateRemoteCheckbox.checked
+
+                    Label {
+                        width: parent.width
+                        id: remoteBitrateTitle
+                        text: qsTr("Remote bitrate: %1 Mbps").arg(remoteSlider.value / 1000.0)
+                        font.pointSize: 12
+                        wrapMode: Text.Wrap
+                    }
+
+                    Row {
+                        width: parent.width
+                        spacing: 5
+
+                        Slider {
+                            id: remoteSlider
+                            value: StreamingPreferences.customBitrateKbps
+                            stepSize: 500
+                            from: 500
+                            to: StreamingPreferences.getMaxBitrate(StreamingPreferences.unlockBitrate)
+                            snapMode: "SnapOnRelease"
+                            width: Math.min(bitrateDesc.implicitWidth, parent.width)
+
+                            onValueChanged: {
+                                remoteBitrateTitle.text = qsTr("Remote bitrate: %1 Mbps").arg(value / 1000.0)
+                                StreamingPreferences.customBitrateKbps = value
+                            }
+
+                            Component.onCompleted: {
+                                remoteBitrateTitle.text = qsTr("Remote bitrate: %1 Mbps").arg(remoteSlider.value / 1000.0)
+                                languageChanged.connect(function() {
+                                    remoteBitrateTitle.text = qsTr("Remote bitrate: %1 Mbps").arg(remoteSlider.value / 1000.0)
+                                })
+                            }
+                        }
+                    }
+                }
+
                 Label {
                     width: parent.width
                     id: windowModeTitle
@@ -1866,6 +1922,10 @@ Flickable {
                         StreamingPreferences.unlockBitrate = checked
                         StreamingPreferences.bitrateKbps = Math.min(StreamingPreferences.bitrateKbps, slider.to)
                         slider.value = StreamingPreferences.bitrateKbps
+                        if (typeof remoteSlider !== 'undefined') {
+                            StreamingPreferences.customBitrateKbps = Math.min(StreamingPreferences.customBitrateKbps, remoteSlider.to)
+                            remoteSlider.value = StreamingPreferences.customBitrateKbps
+                        }
                     }
 
                     ToolTip.delay: 1000
