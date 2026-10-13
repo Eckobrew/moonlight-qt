@@ -2,6 +2,7 @@
 #include "settings/streamingpreferences.h"
 #include "streaming/streamutils.h"
 #include "backend/richpresencemanager.h"
+#include "streaming/audio/capture/microphonecapture.h"
 
 #include <Limelight.h>
 #include "SDL_compat.h"
@@ -582,7 +583,8 @@ Session::Session(NvComputer* computer, NvApp& app, StreamingPreferences *prefere
       m_OpusDecoder(nullptr),
       m_AudioRenderer(nullptr),
       m_AudioSampleCount(0),
-      m_DropAudioEndTime(0)
+    m_DropAudioEndTime(0),
+    m_MicrophoneCapture(nullptr)
 {
 }
 
@@ -1895,15 +1897,51 @@ void Session::interrupt()
     SDL_PushEvent(&event);
 }
 
+bool Session::initializeMicrophoneCapture()
+{
+    if (m_MicrophoneCapture != nullptr) {
+        return true;
+    }
+
+    m_MicrophoneCapture = new MicrophoneCapture(this);
+    const std::string microphoneDeviceName = m_Preferences->micDevice.toStdString();
+    if (!m_MicrophoneCapture->initialize(microphoneDeviceName, m_Preferences->micBitrate)) {
+        delete m_MicrophoneCapture;
+        m_MicrophoneCapture = nullptr;
+        return false;
+    }
+
+    return true;
+}
+
+void Session::destroyMicrophoneCapture()
+{
+    if (m_MicrophoneCapture != nullptr) {
+        m_MicrophoneCapture->stop();
+        delete m_MicrophoneCapture;
+        m_MicrophoneCapture = nullptr;
+    }
+
+}
+
 void Session::exec()
 {
     // If the connection failed, clean up and abort the connection.
     if (!m_AsyncConnectionSuccess) {
+        destroyMicrophoneCapture();
         delete m_InputHandler;
         m_InputHandler = nullptr;
         SDL_QuitSubSystem(SDL_INIT_VIDEO);
         QThreadPool::globalInstance()->start(new DeferredSessionCleanupTask(this));
         return;
+    }
+
+    if (m_Preferences->micCapture) {
+        if (!initializeMicrophoneCapture() || !m_MicrophoneCapture->start()) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                        "Failed to start microphone capture; continuing without microphone");
+            destroyMicrophoneCapture();
+        }
     }
 
     // Pump the Qt event loop one last time before we create our SDL window
@@ -1986,6 +2024,7 @@ void Session::exec()
                          "SDL_CreateWindow() failed: %s",
                          SDL_GetError());
 
+            destroyMicrophoneCapture();
             delete m_InputHandler;
             m_InputHandler = nullptr;
             SDL_QuitSubSystem(SDL_INIT_VIDEO);
@@ -2428,6 +2467,8 @@ void Session::exec()
 DispatchDeferredCleanup:
     // Switch back to synchronous logging mode
     StreamUtils::exitAsyncLoggingMode();
+
+    destroyMicrophoneCapture();
 
     // Uncapture the mouse and hide the window immediately,
     // so we can return to the Qt GUI ASAP.

@@ -1122,6 +1122,77 @@ Flickable {
                     ToolTip.visible: hovered
                     ToolTip.text: qsTr("Mutes Moonlight's audio when you Alt+Tab out of the stream or click on a different window.")
                 }
+
+                CheckBox {
+                    id: micCaptureCheck
+                    width: parent.width
+                    text: qsTr("Send microphone to host PC")
+                    font.pointSize: 12
+                    checked: StreamingPreferences.micCapture
+                    onCheckedChanged: StreamingPreferences.micCapture = checked
+
+                    ToolTip.delay: 1000
+                    ToolTip.timeout: 5000
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("Captures your microphone and streams it to the host PC. Requires Vibepollo on the host, with Steam running.")
+                }
+
+                TextField {
+                    id: micDeviceField
+                    width: parent.width
+                    visible: micCaptureCheck.checked
+                    text: StreamingPreferences.micDevice
+                    placeholderText: qsTr("Default microphone (leave empty for system default)")
+                    font.pointSize: 12
+                    selectByMouse: true
+                    onTextChanged: StreamingPreferences.micDevice = text
+
+                    ToolTip.delay: 1000
+                    ToolTip.timeout: 5000
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("Microphone device name. Leave empty to use the system default input device.")
+                }
+
+                Label {
+                    width: parent.width
+                    id: micBitrateLabel
+                    visible: micCaptureCheck.checked
+                    text: qsTr("Microphone bitrate: %1 kbps").arg(Math.round(StreamingPreferences.micBitrate / 1000))
+                    font.pointSize: 12
+                    wrapMode: Text.Wrap
+                }
+
+                Row {
+                    width: parent.width
+                    visible: micCaptureCheck.checked
+                    spacing: 5
+
+                    Slider {
+                        id: micBitrateSlider
+                        value: StreamingPreferences.micBitrate
+                        stepSize: 8000
+                        from: 32000
+                        to: 96000
+                        snapMode: "SnapOnRelease"
+                        width: parent.width - (resetMicBitrateButton.implicitWidth + parent.spacing)
+                        onValueChanged: StreamingPreferences.micBitrate = value
+
+                        ToolTip.delay: 1000
+                        ToolTip.timeout: 5000
+                        ToolTip.visible: hovered
+                        ToolTip.text: qsTr("Mic audio bitrate. 64 kbps is the default and works well for most connections.")
+                    }
+
+                    Button {
+                        id: resetMicBitrateButton
+                        text: qsTr("Use Default (64 kbps)")
+                        visible: StreamingPreferences.micBitrate !== 64000
+                        onClicked: {
+                            StreamingPreferences.micBitrate = 64000
+                            micBitrateSlider.value = 64000
+                        }
+                    }
+                }
             }
         }
 

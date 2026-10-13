@@ -42,6 +42,8 @@
 	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Moonlight uses the local network to connect to your gaming PC for streaming.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Moonlight uses your microphone to stream voice input to your gaming PC when enabled.</string>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_nvstream._tcp</string>

@@ -148,6 +148,9 @@ public:
     Q_PROPERTY(bool gamepadMouse MEMBER gamepadMouse NOTIFY gamepadMouseChanged)
     Q_PROPERTY(bool detectNetworkBlocking MEMBER detectNetworkBlocking NOTIFY detectNetworkBlockingChanged)
     Q_PROPERTY(bool showPerformanceOverlay MEMBER showPerformanceOverlay NOTIFY showPerformanceOverlayChanged)
+    Q_PROPERTY(bool micCapture MEMBER micCapture NOTIFY micCaptureChanged)
+    Q_PROPERTY(QString micDevice MEMBER micDevice NOTIFY micDeviceChanged)
+    Q_PROPERTY(int micBitrate MEMBER micBitrate NOTIFY micBitrateChanged)
     Q_PROPERTY(AudioConfig audioConfig MEMBER audioConfig NOTIFY audioConfigChanged)
     Q_PROPERTY(VideoCodecConfig videoCodecConfig MEMBER videoCodecConfig NOTIFY videoCodecConfigChanged)
     Q_PROPERTY(bool enableHdr MEMBER enableHdr NOTIFY enableHdrChanged)
@@ -199,6 +202,9 @@ public:
     bool gamepadMouse;
     bool detectNetworkBlocking;
     bool showPerformanceOverlay;
+    bool micCapture;
+    QString micDevice;
+    int micBitrate;
     bool swapMouseButtons;
     bool swapWinAltKeys;
     bool muteOnFocusLoss;
@@ -250,6 +256,9 @@ signals:
     void gamepadMouseChanged();
     void detectNetworkBlockingChanged();
     void showPerformanceOverlayChanged();
+    void micCaptureChanged();
+    void micDeviceChanged();
+    void micBitrateChanged();
     void mouseButtonsChanged();
     void swapWinAltKeysChanged();
     void muteOnFocusLossChanged();
