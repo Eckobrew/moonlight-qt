@@ -2,6 +2,8 @@
 #include "nvapp.h"
 #include "settings/compatfetcher.h"
 
+#include <Limelight.h>
+#include <QtEndian>
 #include <QUdpSocket>
 #include <QHostInfo>
 #include <QNetworkInterface>
@@ -430,13 +432,23 @@ NvComputer::ReachabilityType NvComputer::getActiveAddressReachability() const
                         return ReachabilityType::RI_VPN;
                     }
 
-                    if (nic.humanReadableName().startsWith("ZeroTier")) {
-                        // ZeroTier interfaces always start with "ZeroTier"
+                    if (nic.humanReadableName().startsWith("ZeroTier") ||
+                        nic.humanReadableName().contains("Tailscale", Qt::CaseInsensitive)) {
                         return ReachabilityType::RI_VPN;
                     }
 
-                    if (nic.humanReadableName().contains("VPN")) {
+                    if (nic.humanReadableName().contains("VPN", Qt::CaseInsensitive)) {
                         // This one is just a final VPN heuristic if all else fails
+                        return ReachabilityType::RI_VPN;
+                    }
+
+                    // Explicitly detect Tailscale CGNAT (100.64.0.0/10) or Tailscale IPv6 (fd7a:115c:a1e0::/48)
+                    QHostAddress localHostAddr(s.localAddress());
+                    QHostAddress peerHostAddr(s.peerAddress());
+                    if (localHostAddr.isInSubnet(QHostAddress("100.64.0.0"), 10) ||
+                        peerHostAddr.isInSubnet(QHostAddress("100.64.0.0"), 10) ||
+                        localHostAddr.isInSubnet(QHostAddress("fd7a:115c:a1e0::"), 48) ||
+                        peerHostAddr.isInSubnet(QHostAddress("fd7a:115c:a1e0::"), 48)) {
                         return ReachabilityType::RI_VPN;
                     }
 
@@ -478,13 +490,14 @@ bool NvComputer::isConnectedViaRemoteAddress() const
         return false;
     }
 
-    // If activeAddress explicitly matches remoteAddress, it's connecting via remote IP
-    if (!currentRemote.isNull() && currentActive.address() == currentRemote.address()) {
-        return true;
-    }
-
     // Check reachability
     ReachabilityType reachability = getActiveAddressReachability();
+
+    // If reachability indicates a VPN (including Tailscale or point-to-point tunnels),
+    // always treat as a remote connection.
+    if (reachability == ReachabilityType::RI_VPN) {
+        return true;
+    }
 
     // If activeAddress explicitly matches localAddress and reachability is local LAN, it's local
     if (!currentLocal.isNull() && currentActive.address() == currentLocal.address() &&
@@ -497,7 +510,27 @@ bool NvComputer::isConnectedViaRemoteAddress() const
         return false;
     }
 
-    // All other cases (VPN or WAN route) are considered remote
+    // If we're not on a VPN/tunnel and we reach the host via its remoteAddress (or external IP),
+    // check for NAT hairpinning/loopback:
+    // When inside the local network connecting to the host's public IP, our client's external IP
+    // will match the host's remoteAddress (external IP).
+    if (!currentRemote.isNull() && currentActive.address() == currentRemote.address()) {
+        quint32 clientExternalAddr = 0;
+        int err = LiFindExternalAddressIP4("stun.moonlight-stream.org", 3478, &clientExternalAddr);
+        if (err == 0) {
+            QHostAddress clientWan(qFromBigEndian(clientExternalAddr));
+            if (clientWan == QHostAddress(currentRemote.address())) {
+                qInfo() << "Detected NAT hairpinning for" << currentRemote.address()
+                        << "(Client WAN" << clientWan.toString()
+                        << "matches Host WAN" << currentRemote.address()
+                        << "). Treating connection as local.";
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // All other cases (WAN route or unknown non-LAN) are considered remote
     return true;
 }
 
