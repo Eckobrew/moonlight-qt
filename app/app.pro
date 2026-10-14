@@ -582,6 +582,10 @@ macx {
 
         QMAKE_RPATHDIR += @executable_path/../Frameworks
     }
+
+    # Automate ad-hoc signing with network & HW-decoding entitlements
+    ENTITLEMENTS_FILE = $$PWD/../entitlements.plist
+    QMAKE_POST_LINK += codesign --force --deep --entitlements $$ENTITLEMENTS_FILE --sign - $$OUT_PWD/$${TARGET}.app
 }
 
 VERSION = "$$cat(version.txt)"
