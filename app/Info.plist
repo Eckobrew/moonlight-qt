@@ -47,9 +47,9 @@
 		<string>_nvstream._tcp</string>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>VERSION</string>
+	<string>6.2.0</string>
 	<key>CFBundleShortVersionString</key>
-	<string>VERSION</string>
+	<string>6.2.0</string>
 	<key>CFBundleDisplayName</key>
 	<string>Moonlight</string>
     <key>LSApplicationCategoryType</key>
