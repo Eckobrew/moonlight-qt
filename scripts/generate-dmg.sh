@@ -47,9 +47,18 @@ export CFLAGS=-flto=thin
 export CXXFLAGS=-flto=thin
 export LDFLAGS=-flto=thin
 
-echo Configuring the project
+# Determine target architectures
+if [ -z "$QMAKE_APPLE_DEVICE_ARCHS" ]; then
+  if [ -n "$CI" ] || [ -n "$CI_VERSION" ] || [ -n "$GITHUB_ACTIONS" ]; then
+    QMAKE_APPLE_DEVICE_ARCHS="x86_64 arm64"
+  else
+    QMAKE_APPLE_DEVICE_ARCHS="$(uname -m)"
+  fi
+fi
+
+echo Configuring the project for $QMAKE_APPLE_DEVICE_ARCHS
 pushd $BUILD_FOLDER
-qmake $SOURCE_ROOT/moonlight-qt.pro QMAKE_APPLE_DEVICE_ARCHS="x86_64 arm64" || fail "Qmake failed!"
+qmake $SOURCE_ROOT/moonlight-qt.pro QMAKE_APPLE_DEVICE_ARCHS="$QMAKE_APPLE_DEVICE_ARCHS" || fail "Qmake failed!"
 popd
 
 echo Compiling Moonlight in $BUILD_CONFIG configuration
@@ -78,15 +87,46 @@ if [ "$SIGNING_IDENTITY" != "" ]; then
 fi
 
 echo Creating DMG
-if [ "$SIGNING_IDENTITY" != "" ]; then
-  create-dmg $BUILD_FOLDER/app/Moonlight.app $INSTALLER_FOLDER --identity="$SIGNING_IDENTITY" --no-version-in-filename || fail "create-dmg failed!"
+if command -v create-dmg >/dev/null 2>&1 && create-dmg --help 2>&1 | grep -q "<output_name.dmg>"; then
+  # create-dmg/create-dmg (Homebrew / MacPorts bash version)
+  DMG_STAGING="$BUILD_FOLDER/dmg-staging"
+  rm -rf "$DMG_STAGING"
+  mkdir -p "$DMG_STAGING"
+  cp -R "$BUILD_FOLDER/app/Moonlight.app" "$DMG_STAGING/"
+  if [ "$SIGNING_IDENTITY" != "" ]; then
+    create-dmg --codesign "$SIGNING_IDENTITY" --sandbox-safe "$INSTALLER_FOLDER/Moonlight.dmg" "$DMG_STAGING" || fail "create-dmg failed!"
+  else
+    create-dmg --sandbox-safe "$INSTALLER_FOLDER/Moonlight.dmg" "$DMG_STAGING"
+    case $? in
+      0) ;;
+      2) ;;
+      *) fail "create-dmg failed!";;
+    esac
+  fi
+  rm -rf "$DMG_STAGING"
+elif command -v create-dmg >/dev/null 2>&1; then
+  # sindresorhus/create-dmg (npm version used in CI)
+  if [ "$SIGNING_IDENTITY" != "" ]; then
+    create-dmg $BUILD_FOLDER/app/Moonlight.app $INSTALLER_FOLDER --identity="$SIGNING_IDENTITY" --no-version-in-filename || fail "create-dmg failed!"
+  else
+    create-dmg $BUILD_FOLDER/app/Moonlight.app $INSTALLER_FOLDER --no-version-in-filename
+    case $? in
+      0) ;;
+      2) ;;
+      *) fail "create-dmg failed!";;
+    esac
+  fi
 else
-  create-dmg $BUILD_FOLDER/app/Moonlight.app $INSTALLER_FOLDER --no-version-in-filename
-  case $? in
-    0) ;;
-    2) ;;
-    *) fail "create-dmg failed!";;
-  esac
+  echo "create-dmg not installed, creating disk image with hdiutil"
+  DMG_STAGING="$BUILD_FOLDER/dmg-staging"
+  rm -rf "$DMG_STAGING"
+  mkdir -p "$DMG_STAGING"
+  cp -R "$BUILD_FOLDER/app/Moonlight.app" "$DMG_STAGING/"
+  hdiutil create -volname "Moonlight" -srcfolder "$DMG_STAGING" -ov -format UDZO "$INSTALLER_FOLDER/Moonlight.dmg" || fail "hdiutil failed!"
+  rm -rf "$DMG_STAGING"
+  if [ "$SIGNING_IDENTITY" != "" ]; then
+    codesign --force --sign "$SIGNING_IDENTITY" "$INSTALLER_FOLDER/Moonlight.dmg" || fail "Signing failed!"
+  fi
 fi
 
 if [ "$NOTARY_KEYCHAIN_PROFILE" != "" ]; then
