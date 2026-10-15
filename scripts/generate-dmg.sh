@@ -37,9 +37,10 @@ python3 $SOURCE_ROOT/setup-deps.py
 echo Cleaning output directories
 rm -rf $BUILD_FOLDER
 rm -rf $INSTALLER_FOLDER
-mkdir $BUILD_ROOT
-mkdir $BUILD_FOLDER
-mkdir $INSTALLER_FOLDER
+rm -rf $SOURCE_ROOT/app/release $SOURCE_ROOT/app/debug $SOURCE_ROOT/app/Makefile* $SOURCE_ROOT/app/Moonlight.app $SOURCE_ROOT/app/qml_qmlcache.qrc
+mkdir -p $BUILD_ROOT
+mkdir -p $BUILD_FOLDER
+mkdir -p $INSTALLER_FOLDER
 
 # Enable LTO for official builds
 export CFLAGS=-flto=thin

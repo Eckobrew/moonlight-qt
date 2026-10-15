@@ -10,6 +10,8 @@ unix:!macx {
 
 include(../globaldefs.pri)
 
+INCLUDEPATH += $$OUT_PWD $$OUT_PWD/release $$OUT_PWD/debug
+
 # Precompile QML files to avoid writing qmlcache on portable versions.
 # Since this binds the app against the Qt runtime version, we will only
 # do this for Windows and Mac (when disable-prebuilts is not defined),
