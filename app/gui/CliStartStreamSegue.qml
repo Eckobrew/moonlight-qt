@@ -8,6 +8,10 @@ Item {
         stageLabel.text = qsTr("Establishing connection to PC...")
     }
 
+    function onWakingComputer() {
+        stageLabel.text = qsTr("Waking up PC...")
+    }
+
     function onSearchingApp() {
         stageLabel.text = qsTr("Loading app list...")
     }
@@ -38,6 +42,7 @@ Item {
             toolBar.visible = false
 
             launcher.searchingComputer.connect(onSearchingComputer)
+            launcher.wakingComputer.connect(onWakingComputer)
             launcher.searchingApp.connect(onSearchingApp)
             launcher.sessionCreated.connect(onSessionCreated)
             launcher.failed.connect(onLaunchFailed)

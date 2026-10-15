@@ -1,4 +1,5 @@
 #include "appmodel.h"
+#include "backend/shortcuthelper.h"
 
 AppModel::AppModel(QObject *parent)
     : QAbstractListModel(parent)
@@ -255,6 +256,21 @@ void AppModel::setAppDirectLaunch(int appIndex, bool directLaunch)
     }
 
     m_ComputerManager->clientSideAttributeUpdated(m_Computer);
+}
+
+QString AppModel::chooseIconFile()
+{
+    return ShortcutHelper::chooseIconFile();
+}
+
+QString AppModel::createShortcutForApp(int appIndex, QString iconPath)
+{
+    if (appIndex < 0 || appIndex >= m_VisibleApps.count() || !m_Computer) {
+        return tr("Invalid game or computer");
+    }
+
+    const NvApp& app = m_VisibleApps.at(appIndex);
+    return ShortcutHelper::createShortcut(m_Computer->name, m_Computer->uuid, app.name, iconPath);
 }
 
 void AppModel::handleComputerStateChanged(NvComputer* computer)

@@ -13,22 +13,25 @@ public:
     explicit ComputerSeeker(ComputerManager *manager, QString computerName, QObject *parent = nullptr);
 
     void start(int timeout);
+    NvComputer* findMatchingComputer() const;
 
 signals:
     void computerFound(NvComputer *computer);
+    void wakingComputer();
     void errorTimeout();
 
 private slots:
     void onComputerUpdated(NvComputer *computer);
     void onTimeout();
+    void onWolTimer();
 
 private:
     bool matchComputer(NvComputer *computer) const;
-    NvComputer* findMatchingComputer() const;
     bool isOnline(NvComputer *computer) const;
 
 private:
     ComputerManager *m_ComputerManager;
     QString m_ComputerName;
     QTimer *m_TimeoutTimer;
+    QTimer *m_WolTimer;
 };

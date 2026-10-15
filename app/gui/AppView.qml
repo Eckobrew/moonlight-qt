@@ -328,6 +328,15 @@ CenteredGridView {
                     ToolTip.timeout: 5000
                     ToolTip.visible: hovered
                 }
+                NavigableMenuItem {
+                    text: qsTr("Create Shortcut...")
+                    onTriggered: promptCreateShortcut(model.index, model.name)
+
+                    ToolTip.text: qsTr("Create a desktop shortcut to launch this game directly.")
+                    ToolTip.delay: 1000
+                    ToolTip.timeout: 3000
+                    ToolTip.visible: hovered
+                }
             }
         }
     }
@@ -372,6 +381,33 @@ CenteredGridView {
         }
 
         onAccepted: quitApp()
+    }
+
+    function promptCreateShortcut(index, appName) {
+        var iconPath = appModel.chooseIconFile()
+        if (iconPath && iconPath.length > 0) {
+            var error = appModel.createShortcutForApp(index, iconPath)
+            if (error.length === 0) {
+                shortcutSuccessDialog.appName = appName
+                shortcutSuccessDialog.open()
+            } else {
+                shortcutErrorDialog.errorText = error
+                shortcutErrorDialog.open()
+            }
+        }
+    }
+
+    NavigableMessageDialog {
+        id: shortcutSuccessDialog
+        property string appName: ""
+        text: qsTr("Shortcut for '%1' created successfully on your Desktop.").arg(appName)
+        standardButtons: Dialog.Ok
+    }
+
+    ErrorMessageDialog {
+        id: shortcutErrorDialog
+        property string errorText: ""
+        text: qsTr("Failed to create shortcut: %1").arg(errorText)
     }
 
     ScrollBar.vertical: ScrollBar {}

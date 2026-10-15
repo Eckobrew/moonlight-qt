@@ -51,6 +51,7 @@
 #include "backend/autoupdatechecker.h"
 #include "backend/computermanager.h"
 #include "backend/systemproperties.h"
+#include "backend/shortcuthelper.h"
 #include "streaming/session.h"
 #include "settings/streamingpreferences.h"
 #include "gui/sdlgamepadkeynavigation.h"
@@ -999,6 +1000,10 @@ int main(int argc, char *argv[])
             streamParser.parse(app.arguments(), preferences);
             QString host    = streamParser.getHost();
             QString appName = streamParser.getAppName();
+            QString iconPath = streamParser.getIconPath();
+            if (!iconPath.isEmpty() && QFile::exists(iconPath)) {
+                ShortcutHelper::applyShortcutIdentity(appName, iconPath);
+            }
             auto launcher   = new CliStartStream::Launcher(host, appName, preferences, &app);
             engine.rootContext()->setContextProperty("launcher", launcher);
             break;

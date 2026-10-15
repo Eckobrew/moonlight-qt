@@ -204,6 +204,7 @@ SOURCES += \
     gui/sdlgamepadkeynavigation.cpp \
     streaming/video/overlaymanager.cpp \
     backend/systemproperties.cpp \
+    backend/shortcuthelper.cpp \
     wm.cpp
 
 HEADERS += \
@@ -241,6 +242,7 @@ HEADERS += \
     settings/mappingmanager.h \
     gui/sdlgamepadkeynavigation.h \
     streaming/video/overlaymanager.h \
+    backend/shortcuthelper.h \
     backend/systemproperties.h
 
 # Platform-specific renderers and decoders
@@ -417,7 +419,8 @@ macx {
 
     # macOS frame pacing (CVDisplayLink-based VsyncSource)
     SOURCES += \
-        streaming/video/ffmpeg-renderers/pacer/cvdisplaysource.mm
+        streaming/video/ffmpeg-renderers/pacer/cvdisplaysource.mm \
+        backend/shortcuthelper_mac.mm
     HEADERS += \
         streaming/video/ffmpeg-renderers/pacer/cvdisplaysource.h
 }

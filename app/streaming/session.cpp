@@ -2,6 +2,7 @@
 #include "settings/streamingpreferences.h"
 #include "streaming/streamutils.h"
 #include "backend/richpresencemanager.h"
+#include "backend/shortcuthelper.h"
 
 #include <Limelight.h>
 #include "SDL_compat.h"
@@ -582,7 +583,8 @@ Session::Session(NvComputer* computer, NvApp& app, StreamingPreferences *prefere
       m_OpusDecoder(nullptr),
       m_AudioRenderer(nullptr),
       m_AudioSampleCount(0),
-      m_DropAudioEndTime(0)
+      m_DropAudioEndTime(0),
+      m_CustomIconPath(m_Preferences ? m_Preferences->customIconPath : QString())
 {
 }
 
@@ -1959,9 +1961,13 @@ void Session::exec()
     // We use only the computer name on macOS to match Apple conventions where the
     // app name is featured in the menu bar and the document name is in the title bar.
 #ifdef Q_OS_DARWIN
-    std::string windowName = QString(m_Computer->name).toStdString();
+    std::string windowName = !m_CustomIconPath.isEmpty() ?
+        m_App.name.toStdString() :
+        QString(m_Computer->name).toStdString();
 #else
-    std::string windowName = QString(m_Computer->name + " - Moonlight").toStdString();
+    std::string windowName = !m_CustomIconPath.isEmpty() ?
+        QString(m_App.name + " (" + m_Computer->name + ")").toStdString() :
+        QString(m_Computer->name + " - Moonlight").toStdString();
 #endif
 
     m_Window = SDL_CreateWindow(windowName.c_str(),
@@ -1996,24 +2002,41 @@ void Session::exec()
 
     m_InputHandler->setWindow(m_Window);
 
+    SDL_Surface* iconSurface = nullptr;
+    QImage customImg;
+    if (!m_CustomIconPath.isEmpty() && customImg.load(m_CustomIconPath)) {
+        customImg = customImg.convertToFormat(QImage::Format_RGBA8888);
+        iconSurface = SDL_CreateRGBSurfaceWithFormatFrom((void*)customImg.constBits(),
+                                                         customImg.width(),
+                                                         customImg.height(),
+                                                         32,
+                                                         4 * customImg.width(),
+                                                         SDL_PIXELFORMAT_RGBA32);
+    }
+
     QSvgRenderer svgIconRenderer(QString(":/res/moonlight.svg"));
     QImage svgImage(ICON_SIZE, ICON_SIZE, QImage::Format_RGBA8888);
-    svgImage.fill(0);
-
-    QPainter svgPainter(&svgImage);
-    svgIconRenderer.render(&svgPainter);
-    SDL_Surface* iconSurface = SDL_CreateRGBSurfaceWithFormatFrom((void*)svgImage.constBits(),
-                                                                  svgImage.width(),
-                                                                  svgImage.height(),
-                                                                  32,
-                                                                  4 * svgImage.width(),
-                                                                  SDL_PIXELFORMAT_RGBA32);
+    if (iconSurface == nullptr) {
+        svgImage.fill(0);
+        QPainter svgPainter(&svgImage);
+        svgIconRenderer.render(&svgPainter);
+        iconSurface = SDL_CreateRGBSurfaceWithFormatFrom((void*)svgImage.constBits(),
+                                                         svgImage.width(),
+                                                         svgImage.height(),
+                                                         32,
+                                                         4 * svgImage.width(),
+                                                         SDL_PIXELFORMAT_RGBA32);
+    }
 #ifndef Q_OS_DARWIN
     // Other platforms seem to preserve our Qt icon when creating a new window.
     if (iconSurface != nullptr) {
         // This must be called before entering full-screen mode on Windows
         // or our icon will not persist when toggling to windowed mode
         SDL_SetWindowIcon(m_Window, iconSurface);
+    }
+#else
+    if (!m_CustomIconPath.isEmpty()) {
+        ShortcutHelper::applyShortcutIdentity(m_App.name, m_CustomIconPath);
     }
 #endif
 

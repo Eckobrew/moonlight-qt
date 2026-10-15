@@ -125,6 +125,11 @@ public:
 
     void setShouldExit(bool quitHostApp = false);
 
+    void setCustomIcon(const QString& iconPath)
+    {
+        m_CustomIconPath = iconPath;
+    }
+
 signals:
     void stageStarting(QString stage);
 
@@ -268,6 +273,7 @@ private:
     int m_FlushingWindowEventsRef;
     QStringList m_LaunchWarnings;
     bool m_ShouldExit;
+    QString m_CustomIconPath;
 
     bool m_AsyncConnectionSuccess;
     int m_PortTestResults;

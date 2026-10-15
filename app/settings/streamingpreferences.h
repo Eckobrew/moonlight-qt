@@ -218,6 +218,7 @@ public:
     Language language;
     CaptureSysKeysMode captureSysKeysMode;
     RendererSelection rendererSelection;
+    QString customIconPath;
 
 signals:
     void displayModeChanged();

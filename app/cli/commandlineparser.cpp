@@ -374,6 +374,7 @@ void StreamCommandLineParser::parse(const QStringList &args, StreamingPreference
     parser.addChoiceOption("capture-system-keys", "capture system key combos", m_CaptureSysKeysModeMap.keys());
     parser.addChoiceOption("video-codec", "video codec", m_VideoCodecMap.keys());
     parser.addChoiceOption("video-decoder", "video decoder", m_VideoDecoderMap.keys());
+    parser.addValueOption("icon", "custom shortcut/application icon path");
 
     if (!parser.parse(args)) {
         parser.showError(parser.errorText());
@@ -537,6 +538,11 @@ void StreamCommandLineParser::parse(const QStringList &args, StreamingPreference
     // --help is specified
     parser.handleHelpAndVersionOptions();
 
+    if (parser.isSet("icon")) {
+        m_IconPath = parser.value("icon");
+        preferences->customIconPath = m_IconPath;
+    }
+
     // Verify that both host and app has been provided
     auto posArgs = parser.positionalArguments();
     if (posArgs.length() < 2) {
@@ -558,6 +564,11 @@ QString StreamCommandLineParser::getHost() const
 QString StreamCommandLineParser::getAppName() const
 {
     return m_AppName;
+}
+
+QString StreamCommandLineParser::getIconPath() const
+{
+    return m_IconPath;
 }
 
 ListCommandLineParser::ListCommandLineParser()

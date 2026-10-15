@@ -64,6 +64,8 @@ public:
                 m_ComputerSeeker = new ComputerSeeker(m_ComputerManager, m_ComputerName, q);
                 q->connect(m_ComputerSeeker, &ComputerSeeker::computerFound,
                            q, &Launcher::onComputerFound);
+                q->connect(m_ComputerSeeker, &ComputerSeeker::wakingComputer,
+                           q, &Launcher::wakingComputer);
                 q->connect(m_ComputerSeeker, &ComputerSeeker::errorTimeout,
                            q, &Launcher::onTimeout);
                 m_ComputerSeeker->start(COMPUTER_SEEK_TIMEOUT);

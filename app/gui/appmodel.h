@@ -41,6 +41,10 @@ public:
 
     Q_INVOKABLE void setAppDirectLaunch(int appIndex, bool directLaunch);
 
+    Q_INVOKABLE QString chooseIconFile();
+
+    Q_INVOKABLE QString createShortcutForApp(int appIndex, QString iconPath);
+
     QVariant data(const QModelIndex &index, int role) const override;
 
     int rowCount(const QModelIndex &parent) const override;

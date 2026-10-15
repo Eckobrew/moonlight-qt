@@ -30,6 +30,7 @@ public:
 
 signals:
     void searchingComputer();
+    void wakingComputer();
     void searchingApp();
     void sessionCreated(QString appName, Session *session);
     void failed(QString text);

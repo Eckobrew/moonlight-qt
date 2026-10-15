@@ -63,10 +63,12 @@ public:
 
     QString getHost() const;
     QString getAppName() const;
+    QString getIconPath() const;
 
 private:
     QString m_Host;
     QString m_AppName;
+    QString m_IconPath;
     QMap<QString, StreamingPreferences::WindowMode> m_WindowModeMap;
     QMap<QString, StreamingPreferences::AudioConfig> m_AudioConfigMap;
     QMap<QString, StreamingPreferences::VideoCodecConfig> m_VideoCodecMap;
