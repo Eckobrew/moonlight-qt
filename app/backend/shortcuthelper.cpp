@@ -25,6 +25,13 @@ void applyShortcutIdentityMac(const QString& appName, const QString& iconPath);
 #include <propvarutil.h>
 #include <propkey.h>
 
+#if defined(_MSC_VER)
+#pragma comment(lib, "comdlg32.lib")
+#pragma comment(lib, "propsys.lib")
+#pragma comment(lib, "shell32.lib")
+#pragma comment(lib, "ole32.lib")
+#endif
+
 static QString chooseIconFileWin()
 {
     wchar_t filename[MAX_PATH] = {0};
