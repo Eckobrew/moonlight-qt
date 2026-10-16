@@ -1,11 +1,42 @@
 #include "appmodel.h"
 #include "backend/shortcuthelper.h"
+#include "backend/iconsearcher.h"
+
+#include <QStandardPaths>
+#include <QDir>
+#include <QRegularExpression>
 
 AppModel::AppModel(QObject *parent)
-    : QAbstractListModel(parent)
+    : QAbstractListModel(parent),
+      m_IconSearcher(new IconSearcher(this)),
+      m_ShortcutPendingAppIndex(-1)
 {
     connect(&m_BoxArtManager, &BoxArtManager::boxArtLoadComplete,
             this, &AppModel::handleBoxArtLoaded);
+
+    connect(m_IconSearcher, &IconSearcher::searchFinished,
+            this, &AppModel::iconSearchFinished);
+
+    connect(m_IconSearcher, &IconSearcher::downloadFinished,
+            this, [this](bool success, const QString& localPath, const QString& error) {
+        if (!success) {
+            emit shortcutCreationFinished(false, error);
+            return;
+        }
+
+        if (m_ShortcutPendingAppIndex < 0 || m_ShortcutPendingAppIndex >= m_VisibleApps.count() || !m_Computer) {
+            emit shortcutCreationFinished(false, tr("Invalid game or computer"));
+            return;
+        }
+
+        const NvApp& app = m_VisibleApps.at(m_ShortcutPendingAppIndex);
+        QString err = ShortcutHelper::createShortcut(m_Computer->name, m_Computer->uuid, app.name, localPath);
+        if (err.isEmpty()) {
+            emit shortcutCreationFinished(true, tr("Shortcut for '%1' created successfully on your Desktop.").arg(app.name));
+        } else {
+            emit shortcutCreationFinished(false, err);
+        }
+    });
 }
 
 void AppModel::initialize(ComputerManager* computerManager, QString computerUuid, bool showHiddenGames)
@@ -271,6 +302,31 @@ QString AppModel::createShortcutForApp(int appIndex, QString iconPath)
 
     const NvApp& app = m_VisibleApps.at(appIndex);
     return ShortcutHelper::createShortcut(m_Computer->name, m_Computer->uuid, app.name, iconPath);
+}
+
+void AppModel::searchIcons(QString query, QString engine)
+{
+    m_IconSearcher->search(query, engine);
+}
+
+void AppModel::downloadAndCreateShortcut(int appIndex, QString fullUrl, QString thumbUrl)
+{
+    if (appIndex < 0 || appIndex >= m_VisibleApps.count() || !m_Computer) {
+        emit shortcutCreationFinished(false, tr("Invalid game or computer"));
+        return;
+    }
+
+    m_ShortcutPendingAppIndex = appIndex;
+    const NvApp& app = m_VisibleApps.at(appIndex);
+
+    QString safeName = app.name;
+    safeName.replace(QRegularExpression("[/:\\\\*?\"<>|]"), "_");
+
+    QString appDataDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    QDir().mkpath(appDataDir + "/shortcuts");
+    QString targetPath = appDataDir + "/shortcuts/" + safeName + "_downloaded.png";
+
+    m_IconSearcher->downloadImage(fullUrl, thumbUrl, targetPath);
 }
 
 void AppModel::handleComputerStateChanged(NvComputer* computer)

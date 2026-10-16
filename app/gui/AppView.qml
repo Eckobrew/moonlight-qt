@@ -384,16 +384,42 @@ CenteredGridView {
     }
 
     function promptCreateShortcut(index, appName) {
-        var iconPath = appModel.chooseIconFile()
-        if (iconPath && iconPath.length > 0) {
-            var error = appModel.createShortcutForApp(index, iconPath)
-            if (error.length === 0) {
-                shortcutSuccessDialog.appName = appName
+        iconSearchDialog.showForApp(index, appName, appModel)
+    }
+
+    IconSearchDialog {
+        id: iconSearchDialog
+        onBrowseLocalFileRequested: function(appIndex, appName) {
+            var iconPath = appModel.chooseIconFile()
+            if (iconPath && iconPath.length > 0) {
+                var error = appModel.createShortcutForApp(appIndex, iconPath)
+                iconSearchDialog.close()
+                if (error.length === 0) {
+                    shortcutSuccessDialog.appName = appName
+                    shortcutSuccessDialog.open()
+                } else {
+                    shortcutErrorDialog.errorText = error
+                    shortcutErrorDialog.open()
+                }
+            }
+        }
+    }
+
+    Connections {
+        target: appModel
+        function onShortcutCreationFinished(success, message) {
+            iconSearchDialog.downloading = false
+            iconSearchDialog.close()
+            if (success) {
+                shortcutSuccessDialog.appName = iconSearchDialog.appName
                 shortcutSuccessDialog.open()
             } else {
-                shortcutErrorDialog.errorText = error
+                shortcutErrorDialog.errorText = message
                 shortcutErrorDialog.open()
             }
+        }
+        function onIconSearchFinished(results, error) {
+            iconSearchDialog.onSearchFinished(results, error)
         }
     }
 

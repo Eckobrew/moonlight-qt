@@ -45,6 +45,10 @@ public:
 
     Q_INVOKABLE QString createShortcutForApp(int appIndex, QString iconPath);
 
+    Q_INVOKABLE void searchIcons(QString query, QString engine = "Google");
+
+    Q_INVOKABLE void downloadAndCreateShortcut(int appIndex, QString fullUrl, QString thumbUrl);
+
     QVariant data(const QModelIndex &index, int role) const override;
 
     int rowCount(const QModelIndex &parent) const override;
@@ -59,6 +63,10 @@ private slots:
 signals:
     void computerLost();
 
+    void iconSearchFinished(QVariantList results, QString error);
+
+    void shortcutCreationFinished(bool success, QString message);
+
 private:
     void updateAppList(QVector<NvApp> newList);
 
@@ -72,4 +80,6 @@ private:
     QVector<NvApp> m_VisibleApps, m_AllApps;
     int m_CurrentGameId;
     bool m_ShowHiddenGames;
+    class IconSearcher* m_IconSearcher;
+    int m_ShortcutPendingAppIndex;
 };

@@ -207,12 +207,14 @@ SOURCES += \
     streaming/video/overlaymanager.cpp \
     backend/systemproperties.cpp \
     backend/shortcuthelper.cpp \
+    backend/iconsearcher.cpp \
     wm.cpp
 
 HEADERS += \
     SDL_compat.h \
     backend/nvaddress.h \
     backend/nvapp.h \
+    backend/iconsearcher.h \
     cli/pair.h \
     settings/compatfetcher.h \
     settings/mappingfetcher.h \
