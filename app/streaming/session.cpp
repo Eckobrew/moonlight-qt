@@ -584,7 +584,11 @@ Session::Session(NvComputer* computer, NvApp& app, StreamingPreferences *prefere
       m_AudioRenderer(nullptr),
       m_AudioSampleCount(0),
       m_DropAudioEndTime(0),
-      m_CustomIconPath(m_Preferences ? m_Preferences->customIconPath : QString())
+      m_CustomIconPath(m_Preferences ? m_Preferences->customIconPath : QString()),
+      m_Http(nullptr),
+      m_ClipboardSyncAvailable(false),
+      m_LastClipboardPollTicks(0),
+      m_ConsecutiveClipboardErrors(0)
 {
 }
 
@@ -593,6 +597,7 @@ Session::~Session()
     // NB: This may not get destroyed for a long time! Don't put any non-trivial cleanup here.
     // Use Session::exec() or DeferredSessionCleanupTask instead.
 
+    delete m_Http;
     SDL_DestroyMutex(m_DecoderLock);
 }
 
@@ -1897,6 +1902,81 @@ void Session::interrupt()
     SDL_PushEvent(&event);
 }
 
+void Session::syncClipboardToHost()
+{
+    if (!m_Preferences->clipboardSync || !m_ClipboardSyncAvailable || m_Http == nullptr) {
+        return;
+    }
+
+    if (!SDL_HasClipboardText()) {
+        return;
+    }
+
+    char* text = SDL_GetClipboardText();
+    if (text == nullptr) {
+        return;
+    }
+
+    QString clientText = QString::fromUtf8(text);
+    SDL_free(text);
+
+    // Limit text size to 10 MB to avoid excessive network transfer
+    if (!clientText.isEmpty() && clientText.size() <= 10 * 1024 * 1024 && clientText != m_LastSyncedClipboard) {
+        m_LastSyncedClipboard = clientText;
+        if (!m_Http->sendClipboardContent(clientText, 1500)) {
+            m_ConsecutiveClipboardErrors++;
+            if (m_ConsecutiveClipboardErrors >= 3) {
+                m_ClipboardSyncAvailable = false;
+                SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                            "Repeated failures sending clipboard to host; disabling clipboard sync.");
+            }
+        } else {
+            m_ConsecutiveClipboardErrors = 0;
+        }
+    }
+}
+
+void Session::syncClipboardFromHost()
+{
+    if (!m_Preferences->clipboardSync || !m_ClipboardSyncAvailable || m_Http == nullptr) {
+        return;
+    }
+
+    bool ok = false;
+    QString hostClipboard = m_Http->getClipboardContent(&ok, 1000);
+    if (ok) {
+        m_ConsecutiveClipboardErrors = 0;
+        if (!hostClipboard.isEmpty() && hostClipboard != m_LastSyncedClipboard) {
+            m_LastSyncedClipboard = hostClipboard;
+            SDL_SetClipboardText(hostClipboard.toUtf8().constData());
+        }
+    } else {
+        m_ConsecutiveClipboardErrors++;
+        if (m_ConsecutiveClipboardErrors >= 3) {
+            m_ClipboardSyncAvailable = false;
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                        "Clipboard sync disabled: host does not support clipboard sync or returned an error.");
+        }
+    }
+}
+
+void Session::pollClipboard()
+{
+    if (!m_Preferences->clipboardSync || !m_ClipboardSyncAvailable || m_Http == nullptr) {
+        return;
+    }
+
+    Uint32 now = SDL_GetTicks();
+    if (now - m_LastClipboardPollTicks < 3000) {
+        return;
+    }
+    m_LastClipboardPollTicks = now;
+
+    if (m_Window != nullptr && SDL_GetKeyboardFocus() == m_Window) {
+        syncClipboardFromHost();
+    }
+}
+
 void Session::exec()
 {
     // If the connection failed, clean up and abort the connection.
@@ -2098,6 +2178,41 @@ void Session::exec()
     // Toggle the stats overlay if requested by the user
     m_OverlayManager.setOverlayState(Overlay::OverlayDebug, m_Preferences->showPerformanceOverlay);
 
+    // Initialize clipboard synchronization if enabled
+    if (m_Preferences->clipboardSync) {
+        m_Http = new NvHTTP(m_Computer);
+        m_ClipboardSyncAvailable = true;
+        m_LastSyncedClipboard.clear();
+        m_LastClipboardPollTicks = SDL_GetTicks();
+        m_ConsecutiveClipboardErrors = 0;
+
+        // Perform initial sync from host
+        bool ok = false;
+        QString hostClipboard = m_Http->getClipboardContent(&ok, 1500);
+        if (!ok) {
+            m_ClipboardSyncAvailable = false;
+            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                        "Host does not support clipboard sync; disabling for this session");
+        } else {
+            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                        "Clipboard sync initialized with host");
+            if (!hostClipboard.isEmpty()) {
+                m_LastSyncedClipboard = hostClipboard;
+                SDL_SetClipboardText(hostClipboard.toUtf8().constData());
+            } else if (SDL_HasClipboardText()) {
+                char* text = SDL_GetClipboardText();
+                if (text != nullptr) {
+                    QString clientText = QString::fromUtf8(text);
+                    SDL_free(text);
+                    if (!clientText.isEmpty() && clientText.size() <= 10 * 1024 * 1024) {
+                        m_LastSyncedClipboard = clientText;
+                        m_Http->sendClipboardContent(clientText, 1500);
+                    }
+                }
+            }
+        }
+    }
+
     // Switch to async logging mode when we enter the SDL loop
     StreamUtils::enterAsyncLoggingMode();
 
@@ -2117,6 +2232,7 @@ void Session::exec()
         // and other problems.
         if (!SDL_WaitEventTimeout(&event, 1000)) {
             presence.runCallbacks();
+            pollClipboard();
             continue;
         }
 #else
@@ -2133,9 +2249,12 @@ void Session::exec()
             SDL_Delay(10);
 #endif
             presence.runCallbacks();
+            pollClipboard();
             continue;
         }
 #endif
+        pollClipboard();
+
         switch (event.type) {
         case SDL_QUIT:
             SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
@@ -2190,12 +2309,14 @@ void Session::exec()
                     m_AudioMuted = true;
                 }
                 m_InputHandler->notifyFocusLost();
+                syncClipboardFromHost();
                 break;
             case SDL_WINDOWEVENT_FOCUS_GAINED:
                 if (m_Preferences->muteOnFocusLoss) {
                     m_AudioMuted = false;
                 }
                 m_InputHandler->notifyFocusGained();
+                syncClipboardToHost();
                 break;
             case SDL_WINDOWEVENT_LEAVE:
                 m_InputHandler->notifyMouseLeave();
@@ -2445,6 +2566,9 @@ void Session::exec()
                 break;
             }
             break;
+        case SDL_CLIPBOARDUPDATE:
+            syncClipboardToHost();
+            break;
         }
     }
 
@@ -2512,6 +2636,9 @@ DispatchDeferredCleanup:
     }
 
     SDL_QuitSubSystem(SDL_INIT_VIDEO);
+
+    delete m_Http;
+    m_Http = nullptr;
 
     // Cleanup can take a while, so dispatch it to a worker thread.
     // When it is complete, it will release our s_ActiveSessionSemaphore

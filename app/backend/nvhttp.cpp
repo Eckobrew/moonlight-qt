@@ -572,3 +572,103 @@ NvHTTP::openConnection(QUrl baseUrl,
 
     return reply;
 }
+
+QString
+NvHTTP::getClipboardContent(bool* ok, int timeoutMs)
+{
+    if (ok) {
+        *ok = false;
+    }
+
+    try {
+        QString response = openConnectionToString(m_BaseUrlHttps,
+                                                  "actions/clipboard",
+                                                  "type=text",
+                                                  timeoutMs,
+                                                  NvLogLevel::NVLL_NONE);
+        if (ok) {
+            *ok = true;
+        }
+        return response;
+    }
+    catch (const GfeHttpResponseException& e) {
+        qWarning() << "NvHTTP: Failed to get clipboard content:" << e.getStatusMessage();
+        return QString();
+    }
+    catch (const QtNetworkReplyException& e) {
+        qWarning() << "NvHTTP: Network error getting clipboard:" << e.getErrorText();
+        return QString();
+    }
+}
+
+bool
+NvHTTP::sendClipboardContent(const QString& content, int timeoutMs)
+{
+    try {
+        QUrl url(m_BaseUrlHttps);
+        url.setPath("/actions/clipboard");
+        url.setQuery("uniqueid=" + (m_UseTrueUid ? IdentityManager::get()->getUniqueId() : "0123456789ABCDEF") +
+                     "&uuid=" + QUuid::createUuid().toRfc4122().toHex() +
+                     "&type=text");
+
+        QNetworkRequest request(url);
+        request.setHeader(QNetworkRequest::ContentTypeHeader, "text/plain; charset=utf-8");
+        request.setSslConfiguration(IdentityManager::get()->getSslConfig());
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+        request.setAttribute(QNetworkRequest::Http2AllowedAttribute, false);
+#endif
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 3, 0)
+        request.setAttribute(QNetworkRequest::ConnectionCacheExpiryTimeoutSecondsAttribute, 0);
+#endif
+
+        auto sslErrorsConnection = connect(m_Nam, &QNetworkAccessManager::sslErrors, this, &NvHTTP::handleSslErrors);
+        QNetworkReply* reply = m_Nam->post(request, content.toUtf8());
+
+        QEventLoop loop;
+        connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+        connect(QCoreApplication::instance(), &QCoreApplication::aboutToQuit, &loop, &QEventLoop::quit);
+        if (timeoutMs) {
+            QTimer::singleShot(timeoutMs, &loop, &QEventLoop::quit);
+        }
+
+        loop.exec(QEventLoop::ExcludeUserInputEvents);
+
+        if (!reply->isFinished()) {
+            qWarning() << "NvHTTP: Clipboard send request timed out";
+            reply->abort();
+            delete reply;
+#if QT_VERSION < QT_VERSION_CHECK(6, 3, 0)
+            m_Nam->clearAccessCache();
+#endif
+            disconnect(sslErrorsConnection);
+            return false;
+        }
+
+#if QT_VERSION < QT_VERSION_CHECK(6, 3, 0)
+        m_Nam->clearAccessCache();
+#endif
+        disconnect(sslErrorsConnection);
+
+        if (reply->error() != QNetworkReply::NoError) {
+            qWarning() << "NvHTTP: Failed to send clipboard content:" << reply->errorString();
+            delete reply;
+            return false;
+        }
+
+        int statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        delete reply;
+
+        if (statusCode >= 200 && statusCode < 300) {
+            return true;
+        } else {
+            qWarning() << "NvHTTP: Server returned error status sending clipboard:" << statusCode;
+            return false;
+        }
+    }
+    catch (const std::exception& e) {
+        qWarning() << "NvHTTP: Exception sending clipboard content:" << e.what();
+        return false;
+    }
+}

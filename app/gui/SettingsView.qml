@@ -1631,6 +1631,23 @@ Flickable {
                         StreamingPreferences.reverseScrollDirection = checked
                     }
                 }
+
+                CheckBox {
+                    id: clipboardSyncCheck
+                    hoverEnabled: true
+                    width: parent.width
+                    text: qsTr("Synchronize clipboard with host")
+                    font.pointSize: 12
+                    checked: StreamingPreferences.clipboardSync
+                    onCheckedChanged: {
+                        StreamingPreferences.clipboardSync = checked
+                    }
+
+                    ToolTip.delay: 1000
+                    ToolTip.timeout: 10000
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("Automatically synchronize clipboard contents between client and host. (Requires host support such as Apollo or Vibepollo)")
+                }
             }
         }
 

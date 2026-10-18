@@ -182,6 +182,14 @@ public:
     QVector<NvDisplayMode>
     getDisplayModeList(QString serverInfo);
 
+    QString
+    getClipboardContent(bool* ok = nullptr,
+                        int timeoutMs = 1500);
+
+    bool
+    sendClipboardContent(const QString& content,
+                         int timeoutMs = 1500);
+
     QUrl m_BaseUrlHttp;
     QUrl m_BaseUrlHttps;
 private:

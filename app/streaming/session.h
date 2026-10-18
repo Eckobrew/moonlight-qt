@@ -89,6 +89,8 @@ public:
     }
 };
 
+class NvHTTP;
+
 class Session : public QObject
 {
     Q_OBJECT
@@ -179,6 +181,9 @@ private:
     void notifyMouseEmulationMode(bool enabled);
 
     void updateOptimalWindowDisplayMode();
+    void syncClipboardToHost();
+    void syncClipboardFromHost();
+    void pollClipboard();
 
     enum class DecoderAvailability {
         None,
@@ -274,6 +279,11 @@ private:
     QStringList m_LaunchWarnings;
     bool m_ShouldExit;
     QString m_CustomIconPath;
+    NvHTTP* m_Http;
+    bool m_ClipboardSyncAvailable;
+    QString m_LastSyncedClipboard;
+    Uint32 m_LastClipboardPollTicks;
+    int m_ConsecutiveClipboardErrors;
 
     bool m_AsyncConnectionSuccess;
     int m_PortTestResults;
